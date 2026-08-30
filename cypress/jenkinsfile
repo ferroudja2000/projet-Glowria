@@ -1,0 +1,80 @@
+pipeline {
+agent any
+
+```
+parameters {
+
+    booleanParam(
+        name: 'ALLURE',
+        defaultValue: false,
+        description: 'Génération du rapport Allure'
+    )
+
+    booleanParam(name: 'ISTAGS',defaultValue: false,description: 'Exécuter avec ou sans tags')
+
+    choice(name: 'TAGS', choices: ['@E2E @achat ', '@inscription'],description: 'Choisissez le tag')
+}
+
+stages {
+
+    stage('Installation') {
+        steps {
+            sh 'npm ci'
+        }
+    }
+
+    stage('Clean Allure Results') {
+        steps {
+            sh '''
+                rm -rf allure-results
+                mkdir -p allure-results
+            '''
+        }
+    }
+
+    stage('Tests Cypress') {
+        steps {
+            script {
+
+                if (params.ALLURE) {
+
+                    if (params.ISTAGS) {
+                        sh "npx cypress run --env grepTags=${params.TAGS}"
+                    } else {
+                        sh "npx cypress run"
+                    }
+
+                } else {
+
+                    if (params.ISTAGS) {
+                        sh "npx cypress run --env grepTags=${params.TAGS}"
+                    } else {
+                        sh "npx cypress run"
+                    }
+                }
+            }
+        }
+    }
+}
+
+post {
+
+    always {
+        script {
+
+            if (params.ALLURE) {
+
+                archiveArtifacts artifacts: 'allure-results/**/*',
+                                 allowEmptyArchive: true
+
+                allure(
+                    includeProperties: false,
+                    results: [[path: 'allure-results']]
+                )
+            }
+        }
+    }
+}
+```
+
+}
