@@ -1,7 +1,7 @@
 pipeline {
 agent any
 
-```
+
 parameters {
 
     booleanParam( 
@@ -75,6 +75,5 @@ post {
         }
     }
 }
-```
 
 }
