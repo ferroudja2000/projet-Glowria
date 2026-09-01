@@ -13,22 +13,18 @@ pipeline {
     stages {
 
         stage('Tests Cypress') {
-
             agent {
                 docker {
                     image 'cypress/included:14.5.4'
                     args '-u root --entrypoint='
                 }
             }
-
             stages {
-
                 stage('Installation') {
                     steps {
                         sh 'npm ci'
                     }
                 }
-
                 stage('Préparation') {
                     steps {
                         sh 'rm -rf allure-results'
@@ -44,27 +40,25 @@ pipeline {
                                 sh 'npx cypress run'
                             }
                         }
-                    }
-                }
-            }
-        }
-    }
+                      }
+                 }
+             }
+             }
+       }
 
     post {
         always {
             script {
-
                 if (params.GENERATE_ALLURE) {
-
                     allure(
                         includeProperties: false,
                         jdk: '',
                         results: [
                             [path: 'allure-results']
                         ]
-                    )
-                }
-            }
-        }
-    }
-}
+                      )
+                 }
+                   }
+          }
+          }
+           }
