@@ -1,60 +1,77 @@
+```groovy
 pipeline {
 
-    agent {
-        docker {
-            image 'cypress/included:14.5.4'
-            args '-u root --entrypoint='
-        }
-    }
+    agent any
 
     parameters {
 
         booleanParam(
-            name: 'ALLURE',
+            name: 'GENERATE_ALLURE',
             defaultValue: false,
-            description: 'Générer le rapport Allure'
-        )
-
-        booleanParam(
-            name: 'MOCHAWESOME',
-            defaultValue: true,
-            description: 'Générer le rapport Mochawesome'
+            description: 'Activer la génération du rapport Allure'
         )
     }
 
     stages {
 
-        stage('Installation') {
-            steps {
-                sh 'npm ci'
+        stage('Tests Cypress') {
+
+            agent {
+                docker {
+                    image 'cypress/included:14.5.4'
+                    args '-u root --entrypoint='
+                }
             }
-        }
 
-        stage('Préparation des rapports') {
-            steps {
-                script {
+            stages {
 
-                    if (params.ALLURE) {
+                stage('Installation') {
+                    steps {
+                        sh 'npm ci'
+                    }
+                }
+
+                stage('Préparation') {
+                    steps {
                         sh '''
-                            rm -rf allure-results allure-report
+                            rm -rf allure-results
+                            rm -rf allure-report
+                            rm -rf cypress/reports
+
                             mkdir -p allure-results
                         '''
                     }
-
-                    if (params.MOCHAWESOME) {
-                        sh '''
-                            rm -rf cypress/reports
-                            mkdir -p cypress/reports
-                        '''
-                    }
                 }
-            }
-        }
 
-        stage('Tests Cypress') {
-            steps {
-                script {
-                    sh 'npx cypress run'
+                stage('Tests') {
+                    steps {
+                        script {
+
+                            try {
+
+                                if (params.GENERATE_ALLURE) {
+
+                                    echo 'Allure activé'
+
+                                    sh '''
+                                        npx cypress run --env allure=true
+                                    '''
+
+                                } else {
+
+                                    echo 'Allure désactivé'
+
+                                    sh '''
+                                        npx cypress run
+                                    '''
+                                }
+
+                            } finally {
+
+                                echo 'Les tests Cypress sont terminés.'
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -63,46 +80,41 @@ pipeline {
     post {
 
         always {
+
             script {
 
-                // =========================
-                // ARCHIVER LES RAPPORTS
-                // =========================
+                echo 'Archivage des rapports...'
 
-                if (params.MOCHAWESOME) {
-                    archiveArtifacts(
-                        artifacts: 'cypress/reports/**',
-                        allowEmptyArchive: true
+                archiveArtifacts(
+                    artifacts: '''
+                        cypress/reports/**
+                        ,allure-results/**
+                        ,allure-report/**
+                        ,cypress/screenshots/**
+                        ,cypress/videos/**
+                    ''',
+                    allowEmptyArchive: true
+                )
+
+                /*
+                 * Publication Allure uniquement
+                 * si la case GENERATE_ALLURE est cochée.
+                 */
+                if (params.GENERATE_ALLURE) {
+
+                    echo 'Publication du rapport Allure...'
+
+                    allure(
+                        includeProperties: false,
+                        jdk: '',
+                        results: [
+                            [path: 'allure-results']
+                        ]
                     )
                 }
 
-                // =========================
-                // ALLURE
-                // =========================
-
-                if (params.ALLURE) {
-
-                    echo 'Génération du rapport Allure...'
-
-                    try {
-                        allure(
-                            results: [
-                                [path: 'allure-results']
-                            ]
-                        )
-                    } catch (Exception e) {
-                        echo "Impossible de générer Allure : ${e.message}"
-                    }
-                }
-
-                // =========================
-                // MOCHAWESOME
-                // =========================
-
-                if (params.MOCHAWESOME) {
-                    echo 'Rapport Mochawesome disponible dans cypress/reports/'
-                }
             }
         }
     }
 }
+```
