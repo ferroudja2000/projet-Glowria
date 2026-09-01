@@ -3,11 +3,10 @@ pipeline {
     agent any
 
     parameters {
-
         booleanParam(
             name: 'GENERATE_ALLURE',
             defaultValue: false,
-            description: 'Activer la génération du rapport Allure'
+            description: 'Activer le rapport Allure'
         )
     }
 
@@ -32,42 +31,17 @@ pipeline {
 
                 stage('Préparation') {
                     steps {
-                        sh '''
-                            rm -rf allure-results
-                            rm -rf allure-report
-                            rm -rf cypress/reports
-
-                            mkdir -p allure-results
-                        '''
+                        sh 'rm -rf allure-results'
                     }
                 }
 
                 stage('Tests') {
                     steps {
                         script {
-
-                            try {
-
-                                if (params.GENERATE_ALLURE) {
-
-                                    echo 'Allure activé'
-
-                                    sh '''
-                                        npx cypress run --env allure=true
-                                    '''
-
-                                } else {
-
-                                    echo 'Allure désactivé'
-
-                                    sh '''
-                                        npx cypress run
-                                    '''
-                                }
-
-                            } finally {
-
-                                echo 'Les tests Cypress sont terminés.'
+                            if (params.GENERATE_ALLURE) {
+                                sh 'npx cypress run --env allure=true'
+                            } else {
+                                sh 'npx cypress run'
                             }
                         }
                     }
@@ -77,31 +51,10 @@ pipeline {
     }
 
     post {
-
         always {
-
             script {
 
-                echo 'Archivage des rapports...'
-
-                archiveArtifacts(
-                    artifacts: '''
-                        cypress/reports/**
-                        ,allure-results/**
-                        ,allure-report/**
-                        ,cypress/screenshots/**
-                        ,cypress/videos/**
-                    ''',
-                    allowEmptyArchive: true
-                )
-
-                /*
-                 * Publication Allure uniquement
-                 * si la case GENERATE_ALLURE est cochée.
-                 */
                 if (params.GENERATE_ALLURE) {
-
-                    echo 'Publication du rapport Allure...'
 
                     allure(
                         includeProperties: false,
@@ -111,7 +64,6 @@ pipeline {
                         ]
                     )
                 }
-
             }
         }
     }
