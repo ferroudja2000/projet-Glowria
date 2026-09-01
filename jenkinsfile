@@ -1,4 +1,3 @@
-
 pipeline {
 
     agent {
@@ -10,18 +9,16 @@ pipeline {
 
     parameters {
 
-        booleanParam(name: 'ALLURE', defaultValue: false, description: 'Générer le rapport Allure')
-
         booleanParam(
-            name: 'ISTAGS',
+            name: 'ALLURE',
             defaultValue: false,
-            description: 'Exécuter avec un tag'
+            description: 'Générer le rapport Allure'
         )
 
-        choice(
-            name: 'TAGS',
-            choices: ['@E2E @achat', '@inscription'],
-            description: 'Choisir le tag'
+        booleanParam(
+            name: 'MOCHAWESOME',
+            defaultValue: true,
+            description: 'Générer le rapport Mochawesome'
         )
     }
 
@@ -33,31 +30,31 @@ pipeline {
             }
         }
 
-        stage('Préparation Allure') {
-            when {
-                expression {
-                    params.ALLURE
-                }
-            }
-
+        stage('Préparation des rapports') {
             steps {
-                sh ''' 
-                    rm -rf allure-results
-                    mkdir -p allure-results
-                '''
+                script {
+
+                    if (params.ALLURE) {
+                        sh '''
+                            rm -rf allure-results allure-report
+                            mkdir -p allure-results
+                        '''
+                    }
+
+                    if (params.MOCHAWESOME) {
+                        sh '''
+                            rm -rf cypress/reports
+                            mkdir -p cypress/reports
+                        '''
+                    }
+                }
             }
         }
 
         stage('Tests Cypress') {
             steps {
                 script {
-
-                    if (params.ISTAGS) {
-                        sh "npx cypress run --env grepTags=${params.TAGS}"
-                    } else {
-                        sh 'npx cypress run'
-                    }
-
+                    sh 'npx cypress run'
                 }
             }
         }
@@ -68,22 +65,44 @@ pipeline {
         always {
             script {
 
-                if (params.ALLURE) {
+                // =========================
+                // ARCHIVER LES RAPPORTS
+                // =========================
 
+                if (params.MOCHAWESOME) {
                     archiveArtifacts(
-                        artifacts: 'allure-results/**/*',
+                        artifacts: 'cypress/reports/**',
                         allowEmptyArchive: true
                     )
+                }
 
-                    allure(
-                        includeProperties: false,
-                        results: [
-                            [path: 'allure-results']
-                        ]
-                    )
+                // =========================
+                // ALLURE
+                // =========================
+
+                if (params.ALLURE) {
+
+                    echo 'Génération du rapport Allure...'
+
+                    try {
+                        allure(
+                            results: [
+                                [path: 'allure-results']
+                            ]
+                        )
+                    } catch (Exception e) {
+                        echo "Impossible de générer Allure : ${e.message}"
+                    }
+                }
+
+                // =========================
+                // MOCHAWESOME
+                // =========================
+
+                if (params.MOCHAWESOME) {
+                    echo 'Rapport Mochawesome disponible dans cypress/reports/'
                 }
             }
         }
     }
 }
-
