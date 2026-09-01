@@ -1,3 +1,4 @@
+    groovy
 pipeline {
 
     agent {
@@ -5,6 +6,27 @@ pipeline {
             image 'cypress/included:14.5.4'
             args '-u root --entrypoint='
         }
+    }
+
+    parameters {
+
+        booleanParam(
+            name: 'ALLURE',
+            defaultValue: false,
+            description: 'Générer le rapport Allure'
+        )
+
+        booleanParam(
+            name: 'ISTAGS',
+            defaultValue: false,
+            description: 'Exécuter avec un tag'
+        )
+
+        choice(
+            name: 'TAGS',
+            choices: ['@E2E @achat', '@inscription'],
+            description: 'Choisir le tag'
+        )
     }
 
     stages {
@@ -15,10 +37,57 @@ pipeline {
             }
         }
 
+        stage('Préparation Allure') {
+            when {
+                expression {
+                    params.ALLURE
+                }
+            }
+
+            steps {
+                sh '''
+                    rm -rf allure-results
+                    mkdir -p allure-results
+                '''
+            }
+        }
+
         stage('Tests Cypress') {
             steps {
-                sh 'npx cypress run'
+                script {
+
+                    if (params.ISTAGS) {
+                        sh "npx cypress run --env grepTags=${params.TAGS}"
+                    } else {
+                        sh 'npx cypress run'
+                    }
+
+                }
+            }
+        }
+    }
+
+    post {
+
+        always {
+            script {
+
+                if (params.ALLURE) {
+
+                    archiveArtifacts(
+                        artifacts: 'allure-results/**/*',
+                        allowEmptyArchive: true
+                    )
+
+                    allure(
+                        includeProperties: false,
+                        results: [
+                            [path: 'allure-results']
+                        ]
+                    )
+                }
             }
         }
     }
 }
+
