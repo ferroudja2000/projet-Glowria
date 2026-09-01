@@ -10,11 +10,7 @@ pipeline {
 
     parameters {
 
-        booleanParam(
-            name: 'ALLURE',
-            defaultValue: false,
-            description: 'Générer le rapport Allure'
-        )
+        booleanParam(name: 'ALLURE', defaultValue: false, description: 'Générer le rapport Allure')
 
         booleanParam(
             name: 'ISTAGS',
