@@ -41,7 +41,7 @@ pipeline {
             }
 
             steps {
-                sh '''
+                sh ''' 
                     rm -rf allure-results
                     mkdir -p allure-results
                 '''
